@@ -110,22 +110,37 @@ uv sync
 
 This reads `pyproject.toml` and installs everything into an isolated virtual environment automatically. No need to create a venv manually.
 
-**3. Set your API key**
+**3. Configure your `.env` file**
 
-Create a `.env` file in the project root. The pipeline supports two providers:
+Create a `.env` file in the project root. Use the template below and fill in your credentials:
 
-**OpenAI** (default):
-```
+```env
+# ─── Provider selector ────────────────────────────────────────────────────────
+# Which LLM backend to use. Options: openai | minimax
+# Defaults to "openai" if not set.
+LLM_PROVIDER=openai
+
+# ─── OpenAI ───────────────────────────────────────────────────────────────────
+# Required when LLM_PROVIDER=openai (or when LLM_PROVIDER is not set).
 OPENAI_API_KEY=sk-...your-key-here...
-```
-The default model is `gpt-5-2025-08-07`. Override with `OPENAI_MODEL=<model-id>`.
+# Optional: override the default model (default: gpt-5-2025-08-07)
+# OPENAI_MODEL=gpt-4o
 
-**MiniMax**:
+# ─── MiniMax ──────────────────────────────────────────────────────────────────
+# Required when LLM_PROVIDER=minimax.
+# MINIMAX_API_KEY=...your-key-here...
+# Optional: override the default model (default: MiniMax-M2.7)
+# MINIMAX_MODEL=MiniMax-M2.7
 ```
-LLM_PROVIDER=minimax
-MINIMAX_API_KEY=...your-key-here...
-```
-The default MiniMax model is `MiniMax-M2.7`. Override with `MINIMAX_MODEL=<model-id>`.
+
+**Switching providers** — change the single `LLM_PROVIDER` line:
+
+| `LLM_PROVIDER` | Required key | Default model |
+|---|---|---|
+| `openai` *(default)* | `OPENAI_API_KEY` | `gpt-5-2025-08-07` |
+| `minimax` | `MINIMAX_API_KEY` | `MiniMax-M2.7` |
+
+> **Note:** you only need the key for the provider you are actually using. The other key can be left out or commented.
 
 ## Running it
 
