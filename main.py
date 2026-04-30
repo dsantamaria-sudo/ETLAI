@@ -14,11 +14,11 @@ console = Console()
 SKILL_PATHS = [
     "skills/detect_headers",
     "skills/detect_bottom",
-    # "skills/strip_empty_cols",
-    # "skills/strip_totals",
-    # "skills/extract_clean",
-    # "skills/export_clean",
-]
+    "skills/strip_totals",
+    "skills/strip_empty_cols",
+    "skills/extract_clean",
+    "skills/export_clean",
+    ]
 
 
 def pick_file() -> str:
