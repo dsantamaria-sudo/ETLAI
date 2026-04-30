@@ -31,7 +31,7 @@ You (pipeline) ──► LLM: "find the headers"
                    {"header_row": 3, "headers": ["Date", "Amount", ...]}
 ```
 
-The model can write and execute Python code using `openpyxl` to inspect any part of the spreadsheet. It loops — inspect → reason → inspect again — until it has enough information to give a confident answer.
+The model can write and execute Python code to inspect any part of the spreadsheet. The sandbox pre-loads the most common libraries (`openpyxl`, `pandas`, `json`, `re`, `Path`) so skill code doesn't need explicit import statements. It loops — inspect → reason → inspect again — until it has enough information to give a confident answer.
 
 ### Skills Architecture
 
@@ -81,7 +81,7 @@ etl-pipeline/
 
 - **Python 3.11+**
 - **[uv](https://docs.astral.sh/uv/)** — fast Python package manager
-- **An OpenAI API key**
+- **An OpenAI API key** (or a MiniMax API key if using MiniMax)
 
 To install `uv` (if you don't have it):
 
@@ -110,15 +110,22 @@ uv sync
 
 This reads `pyproject.toml` and installs everything into an isolated virtual environment automatically. No need to create a venv manually.
 
-**3. Set your OpenAI API key**
+**3. Set your API key**
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root. The pipeline supports two providers:
 
+**OpenAI** (default):
 ```
 OPENAI_API_KEY=sk-...your-key-here...
 ```
+The default model is `gpt-5-2025-08-07`. Override with `OPENAI_MODEL=<model-id>`.
 
-You can get a key at [platform.openai.com](https://platform.openai.com/api-keys). The pipeline uses `gpt-4.1-mini` which is fast and cheap.
+**MiniMax**:
+```
+LLM_PROVIDER=minimax
+MINIMAX_API_KEY=...your-key-here...
+```
+The default MiniMax model is `MiniMax-M2.7`. Override with `MINIMAX_MODEL=<model-id>`.
 
 ## Running it
 
@@ -187,7 +194,8 @@ That's it. The model will receive the current state and figure out what to do fr
 
 | Package | Purpose |
 |---|---|
-| `openai` | Calls the GPT model and handles tool use |
-| `openpyxl` | Reads `.xlsx` files (used in the model's Python sandbox) |
-| `python-dotenv` | Loads `OPENAI_API_KEY` from `.env` |
+| `openai` | Calls the LLM (OpenAI or MiniMax via OpenAI-compatible API) |
+| `openpyxl` | Reads `.xlsx` files (available in the model's Python sandbox) |
+| `pandas` | Data manipulation (available in the model's Python sandbox) |
+| `python-dotenv` | Loads API keys from `.env` |
 | `rich` | Pretty terminal output |
