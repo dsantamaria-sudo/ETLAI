@@ -1,3 +1,15 @@
 import os
+from openai import OpenAI
 
-MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini-2025-04-14")
+PROVIDER = os.environ.get("LLM_PROVIDER", "openai").lower()
+_PROVIDER = PROVIDER
+
+if _PROVIDER == "minimax":
+    MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
+    client = OpenAI(
+        base_url="https://api.minimax.io/v1",
+        api_key=os.environ["MINIMAX_API_KEY"],
+    )
+else:
+    MODEL = os.environ.get("OPENAI_MODEL", "gpt-5-2025-08-07")
+    client = OpenAI()

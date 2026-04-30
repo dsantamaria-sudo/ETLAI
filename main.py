@@ -7,6 +7,7 @@ from rich.console import Console
 load_dotenv()
 from rich.panel import Panel
 from pipeline.runner import run_pipeline
+from pipeline.config import PROVIDER, MODEL
 
 console = Console()
 
@@ -44,7 +45,7 @@ def main():
 
     excel_path = args.excel_path or pick_file()
 
-    console.print(Panel(f"[bold]ETL Pipeline[/bold]\nFile: {excel_path}", expand=False))
+    console.print(Panel(f"[bold]ETL Pipeline[/bold]\nFile:     {excel_path}\nProvider: {PROVIDER}\nModel:    {MODEL}", expand=False))
 
     try:
         final_state = run_pipeline(excel_path, SKILL_PATHS)

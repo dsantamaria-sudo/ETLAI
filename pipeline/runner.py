@@ -1,18 +1,18 @@
 import json
+import re
 from pathlib import Path
-from openai import OpenAI
 from rich.console import Console
 from rich.panel import Panel
 
 from .tools import TOOLS, dispatch
 from .skill import load_skill
 from .skill import extract_section
-from .config import MODEL
+from .config import MODEL, PROVIDER, client
 
 console = Console()
 
 
-def run_step(client: OpenAI, skill_content: str, state: dict) -> dict:
+def run_step(skill_content: str, state: dict) -> dict:
     instructions = extract_section(skill_content, "Instructions")
     system_prompt = (
         f"{instructions}\n\n"
@@ -59,6 +59,9 @@ def run_step(client: OpenAI, skill_content: str, state: dict) -> dict:
                 response_format={"type": "json_object"},
             )
             raw = final.choices[0].message.content
+            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL)
+            raw = re.sub(r"```(?:json)?\s*([\s\S]*?)```", r"\1", raw)
+            raw = raw.strip()
             try:
                 output = json.loads(raw)
             except json.JSONDecodeError as e:
@@ -71,14 +74,13 @@ def run_step(client: OpenAI, skill_content: str, state: dict) -> dict:
 
 def run_pipeline(excel_path: str, skill_paths: list[str]) -> dict:
     state = {"excel_path": excel_path}
-    client = OpenAI()
 
     for i, skill_path in enumerate(skill_paths, start=1):
         skill_content = load_skill(skill_path)
         skill_name = Path(skill_path).parent.name
 
-        console.rule(f"[bold cyan]Step {i}/{len(skill_paths)}: {skill_name}[/bold cyan]")
-        step_output = run_step(client, skill_content, state)
+        console.rule(f"[bold cyan]Step {i}/{len(skill_paths)}: {skill_name}[/bold cyan] [dim]({PROVIDER} / {MODEL})[/dim]")
+        step_output = run_step(skill_content, state)
         state.update(step_output)
         console.print(f"[bold green]✓ {skill_name}[/bold green] — {json.dumps(step_output)}")
 
