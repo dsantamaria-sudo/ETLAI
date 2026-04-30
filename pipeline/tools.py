@@ -1,7 +1,12 @@
 import io
-import json
+import json as _json
+import re as _re
 import sys
 import traceback
+from pathlib import Path
+
+import openpyxl
+import pandas as pd
 from rich.console import Console
 from rich.syntax import Syntax
 
@@ -37,12 +42,25 @@ def run_python(code: str, excel_path: str) -> str:
     old_stdout = sys.stdout
     sys.stdout = stdout_capture
     try:
-        exec(code, {**{"__builtins__": __builtins__}, **local_vars}, local_vars)  # noqa: S102
+        exec(  # noqa: S102
+            code,
+            {
+                "__builtins__": __builtins__,
+                "openpyxl": openpyxl,
+                "pd": pd,
+                "pandas": pd,
+                "json": _json,
+                "re": _re,
+                "Path": Path,
+                **local_vars,
+            },
+            local_vars,
+        )
     except Exception:
         sys.stdout = old_stdout
         error = traceback.format_exc()
         console.print(f"[red]✗ error:[/red] {error}")
-        return json.dumps({"error": error})
+        return _json.dumps({"error": error})
     finally:
         sys.stdout = old_stdout
 
@@ -55,11 +73,11 @@ def run_python(code: str, excel_path: str) -> str:
     if local_vars:
         result["locals"] = {k: v for k, v in local_vars.items() if not k.startswith("_")}
 
-    console.print(f"[bold green]✓ result:[/bold green] {json.dumps(result, default=str)}")
-    return json.dumps(result, default=str)
+    console.print(f"[bold green]✓ result:[/bold green] {_json.dumps(result, default=str)}")
+    return _json.dumps(result, default=str)
 
 
 def dispatch(tool_name: str, tool_args: dict, excel_path: str) -> str:
     if tool_name == "run_python":
         return run_python(tool_args["code"], excel_path)
-    return json.dumps({"error": f"Unknown tool: {tool_name}"})
+    return _json.dumps({"error": f"Unknown tool: {tool_name}"})
