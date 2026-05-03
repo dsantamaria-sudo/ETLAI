@@ -21,13 +21,18 @@ for row_idx in range(min(20, nrows)):
         best_score = score
         best_row = row_idx
 
-headers = [str(v) if pd.notna(v) else '' for v in df.iloc[best_row].tolist()]
+raw_headers = [str(v).strip() if pd.notna(v) else '' for v in df.iloc[best_row].tolist()]
 
 if not any(pd.notna(v) for v in df.iloc[best_row]):
-    headers = []
+    raw_headers = []
+
+# Filtrar columnas con header vacío
+valid_columns = [i for i, h in enumerate(raw_headers) if h != '']
+headers = [raw_headers[i] for i in valid_columns]
 
 result = {
     "header_row": best_row,
-    "headers": headers
+    "headers": headers,
+    "valid_columns": valid_columns  # útil para los scripts siguientes
 }
 print(json.dumps(result))
