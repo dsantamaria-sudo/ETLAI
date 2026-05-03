@@ -1,28 +1,31 @@
-import openpyxl
+import pandas as pd
 import json
 
-# Load the workbook
-wb = openpyxl.load_workbook("C:/Users/Usuario/Downloads/example.xlsx")
-ws = wb.active
+df = pd.read_excel(excel_path, header=None)
 
-# Configuration from state
-header_row = 1
-data_end_row = 17
-excluded_rows = [9, 18]
-given_headers = ["Header 1", "Header 2", "Header 3", "Header 4", "Header 5", 
-                 "Header 6", "Header 7", "Header 8", "Header 9", "Header 10", "Header 11"]
+header_row   = state["header_row"]
+data_end_row = state["data_end_row"]
+excluded     = set(state.get("excluded_rows", []))
 
-# Non-empty columns from our analysis
-non_empty_cols = [2, 4, 6, 8, 10, 12, 14, 15, 16, 17, 18]
+data_start = header_row + 1
+data_end   = data_end_row
 
-# Verify what headers are in row 2 for these columns
-print("Headers in row 2 for non-empty columns:")
-row2_headers = []
-for col in non_empty_cols:
-    header_val = ws.cell(row=2, column=col).value
-    row2_headers.append(header_val)
-    print(f"  Column {col}: '{header_val}'")
+non_empty_cols = []
+for col_idx in range(df.shape[1]):
+    header_val = df.iloc[header_row, col_idx]
+    header_is_empty = pd.isna(header_val) or (isinstance(header_val, str) and header_val.strip() == '')
 
-print(f"\nRow 2 headers: {row2_headers}")
-print(f"Given headers: {given_headers}")
-print(f"Match: {row2_headers == given_headers}")
+    col_data = df.iloc[data_start:data_end + 1, col_idx]
+    col_data = col_data[~col_data.index.isin(excluded)]
+    all_data_empty = col_data.isna().all()
+
+    if not (header_is_empty and all_data_empty):
+        non_empty_cols.append(col_idx)
+
+headers = [str(df.iloc[header_row, col_idx]) for col_idx in non_empty_cols]
+
+result = {
+    "headers": headers,
+    "col_indices": non_empty_cols
+}
+print(json.dumps(result))

@@ -32,9 +32,21 @@ TOOLS = [
     }
 ]
 
-def run_python(code: str, excel_path: str) -> str:
+def _clean_code(code: str) -> str:
+    """Remove <think> blocks and extract the last markdown code block if present."""
+    code = _re.sub(r"<think>.*?</think>", "", code, flags=_re.DOTALL)
+    blocks = _re.findall(r"```(?:python)?\s*([\s\S]*?)```", code)
+    if blocks:
+        return blocks[-1].strip()
+    return code.strip()
+
+
+def run_python(code: str, excel_path: str, state: dict | None = None) -> str:
+    code = _clean_code(code)
     stdout_capture = io.StringIO()
     local_vars: dict = {"excel_path": excel_path}
+    if state is not None:
+        local_vars["state"] = state
 
     console.print("[bold yellow]▶ run_python[/bold yellow]")
     console.print(Syntax(code, "python", theme="monokai", line_numbers=False))

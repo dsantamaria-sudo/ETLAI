@@ -20,3 +20,24 @@ def extract_section(skill_content: str, section_title: str) -> str:
                 break
             result.append(line)
     return "\n".join(result).strip()
+
+
+def replace_section(skill_content: str, section_title: str, new_content: str) -> str:
+    header = f"## {section_title}"
+    lines = skill_content.splitlines()
+
+    header_idx = next((i for i, l in enumerate(lines) if l.strip() == header), None)
+    if header_idx is None:
+        raise ValueError(f"Section '## {section_title}' not found in skill content")
+
+    next_section_idx = next(
+        (i for i in range(header_idx + 1, len(lines)) if lines[i].startswith("## ")),
+        len(lines),
+    )
+
+    result = (
+        lines[: header_idx + 1]
+        + ["", new_content.rstrip(), ""]
+        + lines[next_section_idx:]
+    )
+    return "\n".join(result)

@@ -21,3 +21,8 @@ Thumbs.db
 
 # Input data (may contain sensitive spreadsheets)
 input/
+
+# Others
+*.expected.json
+*.state.json
+file_*

@@ -103,8 +103,8 @@ def _extract_json_from_text(text: str) -> dict | None:
     return candidates[-1] if candidates else None
 
 
-def _run_cached_code(code: str, excel_path: str) -> tuple[dict | None, str | None]:
-    result_str = run_python(code, excel_path)
+def _run_cached_code(code: str, excel_path: str, state: dict | None = None) -> tuple[dict | None, str | None]:
+    result_str = run_python(code, excel_path, state=state)
     result = json.loads(result_str)
     if "error" in result:
         return None, result["error"]
@@ -118,18 +118,31 @@ def _run_cached_code(code: str, excel_path: str) -> tuple[dict | None, str | Non
     return result.get("locals", {}), None
 
 
-def run_step(skill_content: str, state: dict, skill_path: str) -> dict:
+def run_code(code: str, excel_path: str, state: dict | None = None) -> tuple[dict | None, str | None]:
+    """Execute a Python snippet against an Excel file. Returns (output, error)."""
+    return _run_cached_code(code, excel_path, state=state)
+
+
+def run_step(
+    skill_content: str,
+    state: dict,
+    skill_path: str,
+    instructions_override: str | None = None,
+    skip_cache: bool = False,
+    read_only_cache: bool = False,
+    _code_sink: list | None = None,
+) -> dict:
     skill_dir = str(Path(skill_path))
     excel_path = state["excel_path"]
     checker = _load_checker(skill_path)
     failure_reason: str | None = None
 
     # Step 1-2: Try cache code
-    solution_code = cache_module.load_solution(skill_dir)
+    solution_code = None if skip_cache else cache_module.load_solution(skill_dir)
 
     if solution_code is not None:
         console.print("[bold cyan][[CACHE HIT]][/bold cyan] Running cached solution...")
-        cached_output, error = _run_cached_code(solution_code, excel_path)
+        cached_output, error = _run_cached_code(solution_code, excel_path, state=state)
 
         if error is not None:
             console.print(f"[bold red][[CACHE MISS]][/bold red] Cached code errored: {error}")
@@ -153,7 +166,7 @@ def run_step(skill_content: str, state: dict, skill_path: str) -> dict:
         console.print("[bold yellow][[CACHE EMPTY]][/bold yellow] No cached solution found.")
 
     # Step 3: Call the LLM
-    instructions = extract_section(skill_content, "Instructions")
+    instructions = instructions_override if instructions_override is not None else extract_section(skill_content, "Instructions")
     system_prompt = (
         f"{instructions}\n\n"
         f"Always use the variable `excel_path` to reference the Excel file. Never hardcode file paths.\n\n"
@@ -210,9 +223,11 @@ def run_step(skill_content: str, state: dict, skill_path: str) -> dict:
 
             # Step 4-5: Extract last run_python code and persist as solution
             last_code = _extract_last_code(messages)
-            if last_code:
+            if last_code and not skip_cache and not read_only_cache:
                 console.print("[bold cyan][[CACHE UPDATED]][/bold cyan] Saving new solution.")
                 cache_module.save_solution(skill_dir, last_code)
+            if last_code and _code_sink is not None:
+                _code_sink.append(last_code)
 
             return output
 
@@ -220,7 +235,7 @@ def run_step(skill_content: str, state: dict, skill_path: str) -> dict:
             raise RuntimeError(f"Unexpected finish_reason: {choice.finish_reason!r}")
 
 
-def run_pipeline(excel_path: str, skill_paths: list[str]) -> dict:
+def run_pipeline(excel_path: str, skill_paths: list[str], read_only_cache: bool = False) -> dict:
     state = {"excel_path": excel_path}
 
     for i, skill_path in enumerate(skill_paths, start=1):
@@ -228,7 +243,7 @@ def run_pipeline(excel_path: str, skill_paths: list[str]) -> dict:
         skill_name = Path(skill_path).name
 
         console.rule(f"[bold cyan]Step {i}/{len(skill_paths)}: {skill_name}[/bold cyan] [dim]({PROVIDER} / {MODEL})[/dim]")
-        step_output = run_step(skill_content, state, skill_path)
+        step_output = run_step(skill_content, state, skill_path, read_only_cache=read_only_cache)
         state.update(step_output)
         console.print(f"[bold green]✓ {skill_name}[/bold green] — {json.dumps(step_output)}")
 

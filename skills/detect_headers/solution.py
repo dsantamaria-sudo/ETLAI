@@ -1,8 +1,33 @@
 import pandas as pd
+import json
+import openpyxl
 
-# Read the Excel file without assuming a header
-df_raw = pd.read_excel("C:/Users/Usuario/Downloads/example.xlsx", header=None)
-print(f"Shape: {df_raw.shape}")
-print("\nFirst 10 rows:")
-for i, row in df_raw.head(10).iterrows():
-    print(f"Row {i}: {list(row)}")
+df = pd.read_excel(excel_path, header=None)
+nrows, ncols = df.shape
+
+best_row = 0
+best_score = -1
+
+for row_idx in range(min(20, nrows)):
+    row = df.iloc[row_idx]
+    non_null_count = row.notna().sum()
+    if non_null_count == 0:
+        continue
+
+    text_count = sum(1 for v in row if pd.notna(v) and isinstance(v, str))
+    score = text_count + (non_null_count * 0.1)
+
+    if score > best_score:
+        best_score = score
+        best_row = row_idx
+
+headers = [str(v) if pd.notna(v) else '' for v in df.iloc[best_row].tolist()]
+
+if not any(pd.notna(v) for v in df.iloc[best_row]):
+    headers = []
+
+result = {
+    "header_row": best_row,
+    "headers": headers
+}
+print(json.dumps(result))
