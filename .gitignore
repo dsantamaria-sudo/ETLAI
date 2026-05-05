@@ -26,3 +26,7 @@ input/
 *.expected.json
 *.state.json
 file_*
+
+# Generated skill runtime state
+solution.meta.json
+failures.jsonl

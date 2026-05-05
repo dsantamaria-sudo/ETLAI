@@ -3,9 +3,6 @@ import json
 
 df = pd.read_excel(excel_path, header=None)
 
-print(f"Total rows: {len(df)}")
-print(f"Shape: {df.shape}")
-
 # Strategy: Find last row that has actual data (non-empty)
 # Start from the end and work backwards
 

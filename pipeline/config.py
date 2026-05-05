@@ -2,9 +2,8 @@ import os
 from openai import OpenAI
 
 PROVIDER = os.environ.get("LLM_PROVIDER", "openai").lower()
-_PROVIDER = PROVIDER
 
-if _PROVIDER == "minimax":
+if PROVIDER == "minimax":
     MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
     client = OpenAI(
         base_url="https://api.minimax.io/v1",
