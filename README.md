@@ -62,13 +62,18 @@ For each step the runner follows this order:
 1. solution.py exists?
    └─ YES → run it directly (no LLM call)
              checker passes? → done ✓
-             checker fails?  → fall through to LLM
+             checker fails?  → log failure to failures.jsonl → fall through to LLM
    └─ NO  → go to LLM
 
-2. Call LLM → model writes + executes Python → returns JSON
-   └─ checker passes? → save code as solution.py (cache), done ✓
-   └─ checker fails?  → retry with error hint
+2. Call LLM → model writes + executes Python → returns JSON answer
+   └─ solution.py existed (failure case):
+         log failure + LLM suggestion to failures.jsonl
+         solution.py is NEVER overwritten — use retrain_solution.py to fix it
+   └─ no solution.py (first run):
+         save LLM code as solution.py ✓
 ```
+
+`solution.py` is only ever written in two situations: the very first time a skill runs (no cache yet), or explicitly via `generalize.py` / `retrain_solution.py`.
 
 ### Shared State
 
@@ -160,10 +165,34 @@ uv run python main.py
 
 # Direct path
 uv run python main.py input/sample.xlsx
-
-# Protect existing solution.py files (LLM fallback won't overwrite them)
-uv run python main.py input/sample.xlsx --read-only-cache
 ```
+
+**What it does:** runs all skills in sequence against the given Excel file. For each skill, it tries the cached `solution.py` first (checker-validated), and falls back to the LLM if there is no cache or the cache fails. Failures are logged to `failures.jsonl` automatically — `solution.py` is never overwritten during normal pipeline runs.
+
+**Requirements:** API key in `.env`, an Excel file.
+
+---
+
+## Retraining solution.py from real-world failures
+
+When `solution.py` fails on real files during normal pipeline runs, those failures are accumulated in `skills/<name>/failures.jsonl`. Use `retrain_solution.py` to send the current `solution.py` plus all recorded failures to the LLM and get a fixed version.
+
+```bash
+# Retrain using all accumulated failures
+uv run python scripts/retrain_solution.py skills/detect_headers
+
+# Retrain and clear failures.jsonl afterwards
+uv run python scripts/retrain_solution.py skills/detect_headers --clear
+```
+
+**What it does:** reads `solution.py` and `failures.jsonl` for the given skill, builds a prompt with the current code and each failure record (code error, checker error, and the LLM's suggestion from that run), asks the LLM to produce a fixed version, and overwrites `solution.py` with the result.
+
+Each failure record contains:
+- `code_error` — full traceback if the script crashed
+- `checker_error` — reason string if the checker rejected the output
+- `llm_suggestion` — the code the LLM generated during that failed run (useful context for the retrainer)
+
+**Requirements:** at least one failure recorded in `failures.jsonl` (run `main.py` on files that trigger the failure first). API key in `.env`.
 
 ---
 
@@ -196,6 +225,10 @@ For skills that depend on previous steps, add a `file_N.state.json` with the req
 uv run python optimize.py skills/detect_headers
 uv run python optimize.py skills/detect_headers --max-iterations 10 --target-score 1.0
 ```
+
+**What it does:** evaluates the current `## Instructions` against all test files, shows a failure table and a colored diff of proposed changes, and asks for confirmation before updating `SKILL.md`. Previous versions are saved to `optimization/history/`.
+
+**Requirements:** test files in `skills/<name>/optimization/test_files/`, a `checker.py` in the skill folder. API key in `.env`.
 
 **What happens each iteration:**
 
@@ -238,6 +271,10 @@ Once a skill reaches 100% on its test files, use `generalize.py` to synthesize a
 uv run python generalize.py skills/detect_headers
 uv run python generalize.py skills/detect_headers --max-iterations 5 --max-attempts 10
 ```
+
+**What it does:** runs the LLM on each test file individually to collect verified per-file solutions, then asks the LLM to synthesize a single generalized script that passes all of them. Validates the result directly (no LLM per file) and iterates until 100% or `--max-iterations` is reached. Saves the result to `solution.py`.
+
+**Requirements:** test files in `skills/<name>/optimization/test_files/`, a `checker.py` in the skill folder. API key in `.env`.
 
 **Two-phase process:**
 

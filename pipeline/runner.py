@@ -129,13 +129,14 @@ def run_step(
     skill_path: str,
     instructions_override: str | None = None,
     skip_cache: bool = False,
-    read_only_cache: bool = False,
     _code_sink: list | None = None,
 ) -> dict:
     skill_dir = str(Path(skill_path))
     excel_path = state["excel_path"]
     checker = _load_checker(skill_path)
     failure_reason: str | None = None
+    failure_code_error: str | None = None
+    failure_checker_error: str | None = None
 
     # Step 1-2: Try cache code
     solution_code = None if skip_cache else cache_module.load_solution(skill_dir)
@@ -146,8 +147,8 @@ def run_step(
 
         if error is not None:
             console.print(f"[bold red][[CACHE MISS]][/bold red] Cached code errored: {error}")
+            failure_code_error = error
             failure_reason = f"Code raised an error: {error}"
-            cache_module.save_solution(skill_dir, solution_code, failure_reason=failure_reason)
         elif checker is not None:
             ok, reason = checker.check(cached_output, state)
             if ok:
@@ -156,8 +157,8 @@ def run_step(
                 return cached_output
             else:
                 console.print(f"[bold red][[CACHE MISS]][/bold red] Checker failed: {reason}")
+                failure_checker_error = reason
                 failure_reason = reason
-                cache_module.save_solution(skill_dir, solution_code, failure_reason=failure_reason)
         else:
             console.print("[bold cyan][[CACHE HIT]][/bold cyan] No checker — using cached output.")
             cache_module.save_solution(skill_dir, solution_code)
@@ -221,11 +222,24 @@ def run_step(
 
             console.print(Panel(json.dumps(output, indent=2), title="[bold magenta]Step Output[/bold magenta]", border_style="magenta"))
 
-            # Step 4-5: Extract last run_python code and persist as solution
+            # Step 4-5: Extract last run_python code and persist or log
             last_code = _extract_last_code(messages)
-            if last_code and not skip_cache and not read_only_cache:
-                console.print("[bold cyan][[CACHE UPDATED]][/bold cyan] Saving new solution.")
-                cache_module.save_solution(skill_dir, last_code)
+            if not skip_cache:
+                if solution_code is None:
+                    # First run — no prior solution to protect, save directly
+                    if last_code:
+                        console.print("[bold cyan][[CACHE UPDATED]][/bold cyan] Saving first solution.")
+                        cache_module.save_solution(skill_dir, last_code)
+                else:
+                    # Prior solution failed — log failure + LLM suggestion, never overwrite solution.py
+                    console.print("[bold yellow][[FAILURE LOGGED]][/bold yellow] Logging failure and LLM suggestion.")
+                    cache_module.append_failure(
+                        skill_dir,
+                        code_error=failure_code_error,
+                        checker_error=failure_checker_error,
+                        excel_path=excel_path,
+                        llm_suggestion=last_code,
+                    )
             if last_code and _code_sink is not None:
                 _code_sink.append(last_code)
 
@@ -235,7 +249,7 @@ def run_step(
             raise RuntimeError(f"Unexpected finish_reason: {choice.finish_reason!r}")
 
 
-def run_pipeline(excel_path: str, skill_paths: list[str], read_only_cache: bool = False) -> dict:
+def run_pipeline(excel_path: str, skill_paths: list[str]) -> dict:
     state = {"excel_path": excel_path}
 
     for i, skill_path in enumerate(skill_paths, start=1):
@@ -243,7 +257,7 @@ def run_pipeline(excel_path: str, skill_paths: list[str], read_only_cache: bool 
         skill_name = Path(skill_path).name
 
         console.rule(f"[bold cyan]Step {i}/{len(skill_paths)}: {skill_name}[/bold cyan] [dim]({PROVIDER} / {MODEL})[/dim]")
-        step_output = run_step(skill_content, state, skill_path, read_only_cache=read_only_cache)
+        step_output = run_step(skill_content, state, skill_path)
         state.update(step_output)
         console.print(f"[bold green]✓ {skill_name}[/bold green] — {json.dumps(step_output)}")
 

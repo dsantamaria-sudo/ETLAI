@@ -41,7 +41,6 @@ def pick_file() -> str:
 def main():
     parser = argparse.ArgumentParser(description="Run ETL pipeline on an Excel file.")
     parser.add_argument("excel_path", nargs="?", help="Path to the input Excel file (opens file picker if omitted)")
-    parser.add_argument("--read-only-cache", action="store_true", help="Use cached solution.py but never overwrite it")
     args = parser.parse_args()
 
     excel_path = args.excel_path or pick_file()
@@ -49,7 +48,7 @@ def main():
     console.print(Panel(f"[bold]ETL Pipeline[/bold]\nFile:     {excel_path}\nProvider: {PROVIDER}\nModel:    {MODEL}", expand=False))
 
     try:
-        final_state = run_pipeline(excel_path, SKILL_PATHS, read_only_cache=args.read_only_cache)
+        final_state = run_pipeline(excel_path, SKILL_PATHS)
     except RuntimeError as e:
         console.print(f"[bold red]Pipeline failed:[/bold red] {e}")
         raise SystemExit(1)
