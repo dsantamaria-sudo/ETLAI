@@ -16,6 +16,64 @@ Each step is powered by an AI model that can read the spreadsheet and reason abo
 
 ---
 
+## Prerequisites
+
+- **Python 3.11+**
+- **[uv](https://docs.astral.sh/uv/)** — fast Python package manager
+- **An OpenAI API key** (or a MiniMax API key if using MiniMax)
+
+```bash
+# Install uv — macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install uv — Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+## Setup
+
+```bash
+git clone <repo-url>
+cd etl-pipeline
+uv sync
+```
+
+Create a `.env` file:
+
+```env
+# Provider: openai | minimax (default: openai)
+LLM_PROVIDER=openai
+
+OPENAI_API_KEY=sk-...your-key-here...
+# OPENAI_MODEL=gpt-4o          # optional override
+
+# MINIMAX_API_KEY=...           # only needed if LLM_PROVIDER=minimax
+# MINIMAX_MODEL=MiniMax-M2.7
+```
+
+| `LLM_PROVIDER` | Required key | Default model |
+|---|---|---|
+| `openai` *(default)* | `OPENAI_API_KEY` | `gpt-5-2025-08-07` |
+| `minimax` | `MINIMAX_API_KEY` | `MiniMax-M2.7` |
+
+---
+
+## Running the pipeline
+
+```bash
+# File picker dialog
+uv run python main.py
+
+# Direct path
+uv run python main.py input/sample.xlsx
+```
+
+**What it does:** runs all skills in sequence against the given Excel file. For each skill, it tries the cached `solution.py` first (checker-validated), and falls back to the LLM if there is no cache or the cache fails. Failures are logged to `failures.jsonl` automatically — `solution.py` is never overwritten during normal pipeline runs.
+
+**Requirements:** API key in `.env`, an Excel file.
+
+---
+
 ## How the technology works
 
 ### LLM + Tool Use
@@ -112,64 +170,6 @@ etl-pipeline/
 ├── skills/                  # One folder per step
 └── input/                   # Put your Excel files here
 ```
-
----
-
-## Prerequisites
-
-- **Python 3.11+**
-- **[uv](https://docs.astral.sh/uv/)** — fast Python package manager
-- **An OpenAI API key** (or a MiniMax API key if using MiniMax)
-
-```bash
-# Install uv — macOS / Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install uv — Windows (PowerShell)
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-## Setup
-
-```bash
-git clone <repo-url>
-cd etl-pipeline
-uv sync
-```
-
-Create a `.env` file:
-
-```env
-# Provider: openai | minimax (default: openai)
-LLM_PROVIDER=openai
-
-OPENAI_API_KEY=sk-...your-key-here...
-# OPENAI_MODEL=gpt-4o          # optional override
-
-# MINIMAX_API_KEY=...           # only needed if LLM_PROVIDER=minimax
-# MINIMAX_MODEL=MiniMax-M2.7
-```
-
-| `LLM_PROVIDER` | Required key | Default model |
-|---|---|---|
-| `openai` *(default)* | `OPENAI_API_KEY` | `gpt-5-2025-08-07` |
-| `minimax` | `MINIMAX_API_KEY` | `MiniMax-M2.7` |
-
----
-
-## Running the pipeline
-
-```bash
-# File picker dialog
-uv run python main.py
-
-# Direct path
-uv run python main.py input/sample.xlsx
-```
-
-**What it does:** runs all skills in sequence against the given Excel file. For each skill, it tries the cached `solution.py` first (checker-validated), and falls back to the LLM if there is no cache or the cache fails. Failures are logged to `failures.jsonl` automatically — `solution.py` is never overwritten during normal pipeline runs.
-
-**Requirements:** API key in `.env`, an Excel file.
 
 ---
 
